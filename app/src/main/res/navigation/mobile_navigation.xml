@@ -1,21 +1,39 @@
 <?xml version="1.0" encoding="utf-8"?>
+
 <navigation xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/mobile_navigation"
-    app:startDestination="@+id/navigation_home">
+    app:startDestination="@+id/navigation_mygarden">
 
     <fragment
-        android:id="@+id/navigation_home"
-        android:name="com.example.gardenplanner.ui.home.HomeFragment"
-        android:label="@string/title_home"
-        tools:layout="@layout/fragment_home" />
+        android:id="@+id/navigation_mygarden"
+        android:name="com.example.gardenplanner.MyGardenFragment"
+        android:label="@string/title_mygarden"
+        tools:layout="@layout/fragment_mygarden" />
+
+        <action
+        android:id="@+id/action_myGardenFragment_to_plantSelectionFragment"
+        app:destination="@id/plantSelectionFragment" />
 
     <fragment
-        android:id="@+id/navigation_dashboard"
-        android:name="com.example.gardenplanner.ui.dashboard.DashboardFragment"
-        android:label="@string/title_dashboard"
-        tools:layout="@layout/fragment_dashboard" />
+        android:id="@+id/plantSelectionFragment"
+        android:name="com.example.gardenplanner.PlantSelectionFragment"
+        android:label="@string/plantSelectionFragment"
+        tools:layout="@layout/fragment_plant_selection" />
+
+    <fragment
+        android:id="@+id/navigation_settings"
+        android:name="com.example.gardenplanner.com.example.gardenplanner.SettingsFragment"
+        android:label="Settings" />
+        <action
+            android:id="@+id/action_settings_to_profile"
+            app:destination="@id/navigation_profile" />
+
+    <fragment
+        android:id="@+id/navigation_profile"
+        android:name="com.example.gardenplanner.com.example.gardenplanner.ProfileFragment"
+        android:label="Profile" />
 
     <fragment
         android:id="@+id/navigation_notifications"
@@ -25,6 +43,6 @@
 
     <fragment
         android:id="@+id/navigation_calendar"
-        android:name="com.example.gardenplanner.CalendarFragment"
-        android:label="Calendar" />
+        android:name="com.example.gardenplanner.com.example.gardenplanner.CalendarFragment"
+        android:label="@string/title_calendar" />
 </navigation>
