@@ -24,14 +24,16 @@ class PreloadedDatabaseHelper(private val context: Context) : SQLiteOpenHelper(c
 
     private fun copyDatabaseIfNeeded() {
         val dbPath = File(getDatabasePath())
-        if (!dbPath.exists()) {
-            dbPath.parentFile?.mkdirs() // Ensure the parent directory exists
-            context.assets.open(DATABASE_NAME).use { inputStream ->
-                FileOutputStream(dbPath).use { outputStream ->
-                    inputStream.copyTo(outputStream)
-                }
+        if (dbPath.exists()) {
+            dbPath.delete() // Always delete the old database to ensure updates
+        }
+        dbPath.parentFile?.mkdirs() // Ensure the parent directory exists
+        context.assets.open(DATABASE_NAME).use { inputStream ->
+            FileOutputStream(dbPath).use { outputStream ->
+                inputStream.copyTo(outputStream)
             }
         }
+        println("Database copied successfully to: ${dbPath.absolutePath}")
     }
 
     override fun onCreate(db: SQLiteDatabase?) {

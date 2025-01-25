@@ -1,16 +1,23 @@
 package com.example.gardenplanner
 
+import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
+import android.widget.PopupWindow
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
+import android.view.Gravity
+import android.view.ViewGroup.LayoutParams
+import android.graphics.drawable.ColorDrawable
+import android.graphics.Color
+import androidx.appcompat.app.AppCompatActivity
 
 // Utility function to convert ByteArray to Bitmap
-private fun byteArrayToBitmap(byteArray: ByteArray?): Bitmap? {
+fun byteArrayToBitmap(byteArray: ByteArray?): Bitmap? {
     return if (byteArray != null) {
         BitmapFactory.decodeByteArray(byteArray, 0, byteArray.size)
     } else {
@@ -48,9 +55,53 @@ class PlantAdapter(
             holder.image.setImageResource(R.drawable.placeholder_image)
         }
 
-        // Handle item click
-        holder.itemView.setOnClickListener { onItemClick(plant) }
+        // Handle item click to show a pop-up
+        holder.itemView.setOnClickListener {
+            onItemClick(plant) // Pass the full Plant object to the click handler
+        }
+
     }
 
     override fun getItemCount(): Int = plants.size
+
+    // Step 2: Create a function to display a pop-up window
+    private fun showPlantDetailsPopup(context: Context, plant: Plant) {
+        // Inflate the popup layout
+        val popupView = LayoutInflater.from(context).inflate(R.layout.popup_plant_details, null)
+
+        // Create the popup window
+        val popupWindow = PopupWindow(
+            popupView,
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            true
+        )
+
+        // Set the popup data
+        val plantName: TextView = popupView.findViewById(R.id.popup_plant_name)
+        val plantImage: ImageView = popupView.findViewById(R.id.popup_plant_image)
+        val plantDescription: TextView = popupView.findViewById(R.id.popup_plant_description)
+        val seedingWindow: TextView = popupView.findViewById(R.id.popup_plant_seeding_window)
+        val harvestWindow: TextView = popupView.findViewById(R.id.popup_plant_harvest_window)
+
+        plantName.text = plant.name
+        plantImage.setImageBitmap(byteArrayToBitmap(plant.image))
+        plantDescription.text = "Description: ${plant.description}"
+        seedingWindow.text = "Seeding Window: ${plant.seedingWindow}"
+        harvestWindow.text = "Harvest Window: ${plant.harvestWindow}"
+
+        // Dim the background behind the popup
+        val parentView = (context as AppCompatActivity).window.decorView
+        val background = ColorDrawable(Color.BLACK)
+        background.alpha = 160 // Adjust opacity (0-255)
+        parentView.overlay.add(background)
+
+        // Remove the dimmed background when the popup is dismissed
+        popupWindow.setOnDismissListener {
+            parentView.overlay.remove(background)
+        }
+
+        // Show the popup at the center
+        popupWindow.showAtLocation(popupView, Gravity.CENTER, 0, 0)
+    }
 }
