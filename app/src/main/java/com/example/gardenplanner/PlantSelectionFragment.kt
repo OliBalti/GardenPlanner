@@ -76,6 +76,9 @@ class PlantSelectionFragment : Fragment() {
 
         // Set up the SearchView
         val searchView: SearchView = view.findViewById(R.id.search_bar)
+        searchView.setOnClickListener {
+            searchView.isIconified = false
+        }
         searchView.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
             override fun onQueryTextSubmit(query: String?): Boolean {
                 // Handle search button press if needed (optional)

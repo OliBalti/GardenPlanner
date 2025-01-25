@@ -5,42 +5,51 @@
     android:layout_height="wrap_content"
     android:orientation="vertical"
     android:background="@drawable/popup_background"
-    android:padding="50dp"
-    android:gravity="center_horizontal">
+    android:paddingTop="10dp"
+    android:paddingBottom="20dp"
+    android:paddingStart="20dp"
+    android:paddingEnd="20dp">
 
-    <!-- Plant Image -->
-    <ImageView
-        android:id="@+id/popup_plant_image"
-        android:layout_width="150dp"
-        android:layout_height="150dp"
-        android:layout_marginBottom="40dp"
-        android:scaleType="centerCrop" />
-
-    <!-- Plant Name -->
+    <!-- Big Title -->
     <TextView
         android:id="@+id/popup_plant_name"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:textStyle="bold"
         android:textColor="@android:color/black"
-        android:textSize="22sp"
-        android:layout_marginBottom="8dp" />
+        android:textSize="26sp"
+        android:gravity="center"
+        android:layout_marginBottom="24dp" />
 
-    <!-- Plant Description -->
-    <TextView
+    <!-- Description and Image Section -->
+    <RelativeLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Description"
-        android:textStyle="bold"
-        android:textColor="@android:color/black"
-        android:layout_marginBottom="4dp" />
+        android:layout_marginBottom="16dp">
 
-    <TextView
-        android:id="@+id/popup_plant_description"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:textColor="@android:color/black"
-        android:layout_marginBottom="16dp" />
+        <!-- Plant Image -->
+        <ImageView
+            android:id="@+id/popup_plant_image"
+            android:layout_width="120dp"
+            android:layout_height="120dp"
+            android:layout_alignParentEnd="true"
+            android:layout_marginStart="8dp"
+            android:layout_marginBottom="8dp"
+            android:scaleType="centerCrop" />
+
+        <!-- Plant Description -->
+        <TextView
+            android:id="@+id/popup_plant_description"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_toStartOf="@id/popup_plant_image"
+            android:layout_alignParentStart="true"
+            android:layout_centerVertical="true"
+            android:text="Description: This is an example text. The description wraps around the image if it's too long."
+            android:textColor="@android:color/black"
+            android:layout_marginEnd="8dp"
+            android:layout_marginBottom="8dp" />
+    </RelativeLayout>
 
     <!-- Seeding Window -->
     <TextView

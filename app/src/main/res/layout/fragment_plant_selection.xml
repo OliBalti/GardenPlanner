@@ -10,7 +10,9 @@
         android:id="@+id/search_bar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:queryHint="Search plants..." />
+        android:queryHint="Search plants..."
+        android:background="@android:color/darker_gray"
+        />
 
     <!-- RecyclerView -->
     <androidx.recyclerview.widget.RecyclerView
