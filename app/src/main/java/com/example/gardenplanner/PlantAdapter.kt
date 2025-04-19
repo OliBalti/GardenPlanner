@@ -14,6 +14,7 @@ import android.view.Gravity
 import android.view.ViewGroup.LayoutParams
 import android.graphics.drawable.ColorDrawable
 import android.graphics.Color
+import android.widget.ImageButton
 import androidx.appcompat.app.AppCompatActivity
 
 // Utility function to convert ByteArray to Bitmap
@@ -27,13 +28,15 @@ fun byteArrayToBitmap(byteArray: ByteArray?): Bitmap? {
 
 class PlantAdapter(
     private val plants: List<Plant>,
-    private val onItemClick: (Plant) -> Unit
+    private val onItemClick: (Plant) -> Unit,
+    private val onAddToMyGardenClick: (Plant) -> Unit
 ) : RecyclerView.Adapter<PlantAdapter.PlantViewHolder>() {
 
     // ViewHolder class to bind plant data
     class PlantViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val name: TextView = itemView.findViewById(R.id.text_plant_name)
         val image: ImageView = itemView.findViewById(R.id.image_plant)
+        val addButton: ImageButton = itemView.findViewById(R.id.btn_add_to_my_garden)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): PlantViewHolder {
@@ -53,6 +56,11 @@ class PlantAdapter(
         } else {
             // Use a placeholder image if no image is available
             holder.image.setImageResource(R.drawable.placeholder_image)
+        }
+
+        // Handle Plus button click
+        holder.addButton.setOnClickListener {
+            onAddToMyGardenClick(plant)
         }
 
         // Handle item click to show a pop-up

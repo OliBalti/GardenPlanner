@@ -4,43 +4,49 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/mobile_navigation"
-    app:startDestination="@+id/navigation_mygarden">
+    app:startDestination="@id/navigation_mygarden">
 
+    <!-- My Garden Fragment -->
     <fragment
         android:id="@+id/navigation_mygarden"
         android:name="com.example.gardenplanner.MyGardenFragment"
         android:label="@string/title_mygarden"
-        tools:layout="@layout/fragment_mygarden" />
-
+        tools:layout="@layout/fragment_mygarden">
         <action
-        android:id="@+id/action_myGardenFragment_to_plantSelectionFragment"
-        app:destination="@id/plantSelectionFragment" />
+            android:id="@+id/action_myGarden_to_plantSelection"
+            app:destination="@id/plantSelectionFragment" />
+    </fragment>
 
+    <!-- Plant Selection Fragment -->
     <fragment
         android:id="@+id/plantSelectionFragment"
         android:name="com.example.gardenplanner.PlantSelectionFragment"
         android:label="@string/plantSelectionFragment"
         tools:layout="@layout/fragment_plant_selection" />
 
+    <!-- Settings Fragment -->
     <fragment
         android:id="@+id/navigation_settings"
         android:name="com.example.gardenplanner.com.example.gardenplanner.SettingsFragment"
         android:label="Settings" />
-        <action
-            android:id="@+id/action_settings_to_profile"
-            app:destination="@id/navigation_profile" />
+    <action
+        android:id="@+id/action_settings_to_profile"
+        app:destination="@id/navigation_profile" />
 
+    <!-- Profile Fragment -->
     <fragment
         android:id="@+id/navigation_profile"
         android:name="com.example.gardenplanner.com.example.gardenplanner.ProfileFragment"
         android:label="Profile" />
 
+    <!-- Notifications Fragment -->
     <fragment
         android:id="@+id/navigation_notifications"
         android:name="com.example.gardenplanner.ui.notifications.NotificationsFragment"
         android:label="@string/title_notifications"
         tools:layout="@layout/fragment_notifications" />
 
+    <!-- Calendar Fragment -->
     <fragment
         android:id="@+id/navigation_calendar"
         android:name="com.example.gardenplanner.com.example.gardenplanner.CalendarFragment"

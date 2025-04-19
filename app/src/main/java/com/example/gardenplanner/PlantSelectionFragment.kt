@@ -6,6 +6,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.widget.SearchView
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -67,11 +68,16 @@ class PlantSelectionFragment : Fragment() {
         // Set initial filteredPlants to the full list
         filteredPlants = plants.toMutableList()
 
-        // Initialize the adapter with the filtered list
-        adapter = PlantAdapter(filteredPlants) { plant ->
-            // Show popup with plant details
-            showPlantPopup(plant)
-        }
+        adapter = PlantAdapter(
+            filteredPlants,
+            onItemClick = { plant ->
+                showPlantPopup(plant) // Handle popup
+            },
+            onAddToMyGardenClick = { plant ->
+                addToMyGarden(plant) // Add to "My Garden"
+            }
+        )
+
         recyclerView.adapter = adapter
 
         // Set up the SearchView
@@ -118,4 +124,17 @@ class PlantSelectionFragment : Fragment() {
 
         dialog.show()
     }
+
+    private fun addToMyGarden(plant: Plant) {
+        val dbHelper = PreloadedDatabaseHelper(requireContext())
+        val db = dbHelper.writableDatabase
+
+        // Insert plant into MyGarden table if not already added
+        val insertQuery = "INSERT OR IGNORE INTO MyGarden (id, name) VALUES (?, ?)"
+        db.execSQL(insertQuery, arrayOf(plant.id, plant.name))
+
+        // Optionally show a confirmation
+        Toast.makeText(requireContext(), "${plant.name} added to My Garden", Toast.LENGTH_SHORT).show()
+    }
+
 }

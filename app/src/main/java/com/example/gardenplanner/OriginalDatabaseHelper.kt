@@ -6,15 +6,15 @@ import android.database.sqlite.SQLiteOpenHelper
 import java.io.File
 import java.io.FileOutputStream
 
-class PreloadedDatabaseHelper(private val context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, null, DATABASE_VERSION) {
+class OriginalDatabaseHelper(private val context: Context) :
+    SQLiteOpenHelper(context, DATABASE_NAME, null, DATABASE_VERSION) {
 
     companion object {
-        private const val DATABASE_NAME = "plants.db" // Name of the preloaded database
+        private const val DATABASE_NAME = "plants_original.db"
         private const val DATABASE_VERSION = 1
     }
 
     init {
-        // Copy the database if it doesn't exist
         copyDatabaseIfNeeded()
     }
 
@@ -31,26 +31,18 @@ class PreloadedDatabaseHelper(private val context: Context) : SQLiteOpenHelper(c
                     inputStream.copyTo(outputStream)
                 }
             }
-            println("Database copied successfully to: ${dbPath.absolutePath}")
-        } else {
-            println("Database already exists, not overwriting.")
         }
     }
 
-
     override fun onCreate(db: SQLiteDatabase?) {
-        // No need to create tables because the database is preloaded
+        // No table creation needed
     }
 
     override fun onUpgrade(db: SQLiteDatabase?, oldVersion: Int, newVersion: Int) {
-        // Handle database upgrades here
+        // No upgrade logic yet
     }
 
     override fun getReadableDatabase(): SQLiteDatabase {
         return SQLiteDatabase.openDatabase(getDatabasePath(), null, SQLiteDatabase.OPEN_READONLY)
-    }
-
-    override fun getWritableDatabase(): SQLiteDatabase {
-        return SQLiteDatabase.openDatabase(getDatabasePath(), null, SQLiteDatabase.OPEN_READWRITE)
     }
 }

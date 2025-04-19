@@ -39,6 +39,29 @@ class MainActivity : AppCompatActivity() {
         setupActionBarWithNavController(navController, appBarConfiguration)
         navView.setupWithNavController(navController)
 
+        // Explicit navigation handling for BottomNavigationView
+        navView.setOnItemSelectedListener { item ->
+            when (item.itemId) {
+                R.id.navigation_mygarden -> {
+                    navController.navigate(R.id.navigation_mygarden)
+                    true
+                }
+                R.id.navigation_settings -> {
+                    navController.navigate(R.id.navigation_settings)
+                    true
+                }
+                R.id.navigation_notifications -> {
+                    navController.navigate(R.id.navigation_notifications)
+                    true
+                }
+                R.id.navigation_calendar -> {
+                    navController.navigate(R.id.navigation_calendar)
+                    true
+                }
+                else -> false
+            }
+        }
+
         // Log for debugging
         Log.d("MainActivity", "Navigation setup completed successfully.")
 
