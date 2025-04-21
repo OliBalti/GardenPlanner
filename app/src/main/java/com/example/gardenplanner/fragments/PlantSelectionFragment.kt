@@ -1,4 +1,4 @@
-package com.example.gardenplanner
+package com.example.gardenplanner.fragments
 
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -11,6 +11,11 @@ import androidx.appcompat.widget.SearchView
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.example.gardenplanner.model.Plant
+import com.example.gardenplanner.adapters.PlantAdapter
+import com.example.gardenplanner.R
+import com.example.gardenplanner.adapters.byteArrayToBitmap
+import com.example.gardenplanner.helpers.PreloadedDatabaseHelper
 
 class PlantSelectionFragment : Fragment() {
 

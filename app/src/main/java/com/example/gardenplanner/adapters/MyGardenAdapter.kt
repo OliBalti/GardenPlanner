@@ -1,4 +1,4 @@
-package com.example.gardenplanner
+package com.example.gardenplanner.adapters
 
 import android.view.LayoutInflater
 import android.view.View
@@ -7,6 +7,8 @@ import android.widget.Button
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
+import com.example.gardenplanner.model.Plant
+import com.example.gardenplanner.R
 
 class MyGardenAdapter(
     private val plants: List<Plant>,

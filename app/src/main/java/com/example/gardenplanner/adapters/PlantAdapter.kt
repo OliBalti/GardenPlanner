@@ -1,4 +1,4 @@
-package com.example.gardenplanner
+package com.example.gardenplanner.adapters
 
 import android.content.Context
 import android.graphics.Bitmap
@@ -11,11 +11,12 @@ import android.widget.PopupWindow
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import android.view.Gravity
-import android.view.ViewGroup.LayoutParams
 import android.graphics.drawable.ColorDrawable
 import android.graphics.Color
 import android.widget.ImageButton
 import androidx.appcompat.app.AppCompatActivity
+import com.example.gardenplanner.model.Plant
+import com.example.gardenplanner.R
 
 // Utility function to convert ByteArray to Bitmap
 fun byteArrayToBitmap(byteArray: ByteArray?): Bitmap? {

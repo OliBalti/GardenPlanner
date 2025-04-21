@@ -9,6 +9,7 @@ import androidx.navigation.ui.AppBarConfiguration
 import androidx.navigation.ui.setupActionBarWithNavController
 import androidx.navigation.ui.setupWithNavController
 import com.example.gardenplanner.databinding.ActivityMainBinding
+import com.example.gardenplanner.helpers.PreloadedDatabaseHelper
 
 class MainActivity : AppCompatActivity() {
 

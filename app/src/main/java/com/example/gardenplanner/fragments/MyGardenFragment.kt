@@ -1,4 +1,4 @@
-package com.example.gardenplanner
+package com.example.gardenplanner.fragments
 
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -8,6 +8,8 @@ import android.widget.Button
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentTransaction
 import androidx.navigation.fragment.findNavController
+import com.example.gardenplanner.R
+import com.example.gardenplanner.helpers.PreloadedDatabaseHelper
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 
 class MyGardenFragment : Fragment() {

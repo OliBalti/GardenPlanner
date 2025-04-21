@@ -9,7 +9,7 @@
     <!-- My Garden Fragment -->
     <fragment
         android:id="@+id/navigation_mygarden"
-        android:name="com.example.gardenplanner.MyGardenFragment"
+        android:name="com.example.gardenplanner.fragments.MyGardenFragment"
         android:label="@string/title_mygarden"
         tools:layout="@layout/fragment_mygarden">
         <action
@@ -20,14 +20,14 @@
     <!-- Plant Selection Fragment -->
     <fragment
         android:id="@+id/plantSelectionFragment"
-        android:name="com.example.gardenplanner.PlantSelectionFragment"
+        android:name="com.example.gardenplanner.fragments.PlantSelectionFragment"
         android:label="@string/plantSelectionFragment"
         tools:layout="@layout/fragment_plant_selection" />
 
     <!-- Settings Fragment -->
     <fragment
         android:id="@+id/navigation_settings"
-        android:name="com.example.gardenplanner.com.example.gardenplanner.SettingsFragment"
+        android:name="com.example.gardenplanner.fragments.SettingsFragment"
         android:label="Settings" />
     <action
         android:id="@+id/action_settings_to_profile"
@@ -36,7 +36,7 @@
     <!-- Profile Fragment -->
     <fragment
         android:id="@+id/navigation_profile"
-        android:name="com.example.gardenplanner.com.example.gardenplanner.ProfileFragment"
+        android:name="com.example.gardenplanner.fragments.ProfileFragment"
         android:label="Profile" />
 
     <!-- Notifications Fragment -->
@@ -49,6 +49,6 @@
     <!-- Calendar Fragment -->
     <fragment
         android:id="@+id/navigation_calendar"
-        android:name="com.example.gardenplanner.com.example.gardenplanner.CalendarFragment"
+        android:name="com.example.gardenplanner.fragments.CalendarFragment"
         android:label="@string/title_calendar" />
 </navigation>
