@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
+    id("org.jetbrains.kotlin.kapt")
 }
 
 android {
@@ -57,6 +58,13 @@ dependencies {
     // Jetpack Navigation components
     implementation(libs.androidx.navigation.fragment.ktx)
     implementation(libs.androidx.navigation.ui.ktx)
+
+    // --- Room Persistence Library --- <-- Added Here
+    // --- Room Persistence Library (using Version Catalog) ---
+    implementation(libs.androidx.room.runtime)  // Uses alias from libs.versions.toml
+    implementation(libs.androidx.room.ktx)      // Uses alias from libs.versions.toml
+    kapt(libs.androidx.room.compiler)           // Uses alias from libs.versions.toml
+    // --- End Room ---
 
     // Unit Testing
     testImplementation(libs.junit)

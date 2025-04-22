@@ -8,15 +8,23 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast // For simple feedback
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.viewModels // Import for ViewModel delegate
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope // Import for coroutines
+import androidx.lifecycle.repeatOnLifecycle
+import com.example.gardenplanner.data.PlantEntity
 import com.example.gardenplanner.databinding.FragmentCalendarBinding // Use ViewBinding
-import com.example.gardenplanner.helpers.CalendarCalculator
-import com.example.gardenplanner.helpers.CalendarEvent
-import com.example.gardenplanner.helpers.OriginalDatabaseHelper
-import com.example.gardenplanner.helpers.PreloadedDatabaseHelper
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import com.example.gardenplanner.helpers.CalendarCalculator // Keep calculator
+import com.example.gardenplanner.helpers.CalendarEvent // Keep event helper
+// Removed Database Helper imports as ViewModel handles DB access
+// import com.example.gardenplanner.helpers.OriginalDatabaseHelper
+// import com.example.gardenplanner.helpers.PreloadedDatabaseHelper
+import com.example.gardenplanner.viewmodel.CalendarViewModel
+import kotlinx.coroutines.launch // Import launch
+// Removed Dispatchers imports, ViewModel handles threading
+// import kotlinx.coroutines.Dispatchers
+// import kotlinx.coroutines.withContext
+import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 
@@ -26,19 +34,27 @@ class CalendarFragment : Fragment() {
     private var _binding: FragmentCalendarBinding? = null
     private val binding get() = _binding!!
 
-    // Database Helpers and Calculator
-    private lateinit var preloadedDbHelper: PreloadedDatabaseHelper
-    private lateinit var originalDbHelper: OriginalDatabaseHelper
+    // --- Get instance of ViewModel ---
+    private val viewModel: CalendarViewModel by viewModels()
+
+    // --- Remove direct DB Helpers ---
+    // private lateinit var preloadedDbHelper: PreloadedDatabaseHelper
+    // private lateinit var originalDbHelper: OriginalDatabaseHelper
+
+    // Keep calculator (will be used inside populateCalendarEvents)
     private lateinit var calendarCalculator: CalendarCalculator
 
-    // Store calculated events (mapping Date to list of event descriptions for that day)
-    private var allCalendarEvents: Map<LocalDate, List<String>> = emptyMap()
+    // Store calculated events locally in Fragment for display (populated by observing ViewModel)
+    private val calendarEvents = mutableMapOf<LocalDate, MutableList<String>>()
+
+    // Define Last Frost Date (temporary - fetch from ViewModel/Prefs later)
+    // TODO: Make this configurable or fetch from settings/ViewModel
+    private val lastFrostDate: LocalDate = LocalDate.of(LocalDate.now().year, 5, 15)
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
-        // Inflate the layout using ViewBinding
         _binding = FragmentCalendarBinding.inflate(inflater, container, false)
         return binding.root
     }
@@ -46,135 +62,124 @@ class CalendarFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // Initialize Helpers and Calculator
-        // Ensure context is not null
-        context?.let {
-            preloadedDbHelper = PreloadedDatabaseHelper(it)
-            // Make sure OriginalDatabaseHelper exists and is correctly initialized
-            originalDbHelper = OriginalDatabaseHelper(it)
-            calendarCalculator = CalendarCalculator()
+        // Initialize Calculator (can be done here or inside populateCalendarEvents)
+        calendarCalculator = CalendarCalculator()
 
-            // Load events asynchronously
-            loadCalendarEvents()
-        } ?: run {
-            Log.e("CalendarFragment", "Context was null during helper initialization.")
-            Toast.makeText(requireContext(), "Error initializing calendar.", Toast.LENGTH_SHORT).show()
-        }
+        // --- Remove direct loading call ---
+        // loadCalendarEvents()
 
-        // --- UI Interaction ---
-        // Handle date selection on the basic CalendarView
-        binding.calendarView.setOnDateChangeListener { _, year, month, dayOfMonth ->
-            val selectedDate = LocalDate.of(year, month + 1, dayOfMonth) // month is 0-indexed
-            displayEventsForDate(selectedDate)
-        }
+        // --- Setup Date Selection Listener ---
+        setupCalendarViewListener()
 
-        // TODO: Add logic here later to integrate with a better Calendar View library
-        // e.g., setting decorators/markers on dates that have events in `allCalendarEvents`
-        // setupAdvancedCalendarView()
-    }
+        // --- Observe the favorite plants from the ViewModel ---
+        viewLifecycleOwner.lifecycleScope.launch {
+            // repeatOnLifecycle ensures collection stops when view is destroyed
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                Log.d("CalendarFragment", "Starting to collect favorite plants from ViewModel")
+                viewModel.favoritePlants.collect { favoritesList ->
+                    Log.d("CalendarFragment", "Received ${favoritesList.size} favorite plants from ViewModel.")
+                    // Populate the local event map using the fetched favorites and frost date
+                    populateCalendarEvents(favoritesList, lastFrostDate)
 
-    private fun loadCalendarEvents() {
-        // Use coroutines for background database operations
-        lifecycleScope.launch(Dispatchers.IO) { // IO Dispatcher for DB access
-            try {
-                // Ensure PreloadedDatabaseHelper has getFavoritePlantIds method
-                val favoritePlantIds = preloadedDbHelper.getFavoritePlantIds()
-                if (favoritePlantIds.isEmpty()) {
-                    Log.d("CalendarFragment", "No favorite plants found.")
-                    withContext(Dispatchers.Main) {
-                        binding.textViewEventsDisplay?.text = "Add plants to your garden to see calendar events." // Example TextView
-                        binding.textViewEventsDisplay?.visibility = View.VISIBLE
-                    }
-                    return@launch
-                }
+                    // Refresh the display for the currently selected/default date
+                    // Get current selection or default to today
+                    val currentDate = getCurrentSelectedDateOrDefault()
+                    Log.d("CalendarFragment", "Refreshing display for date: $currentDate")
+                    displayEventsForDate(currentDate)
 
-                Log.d("CalendarFragment", "Found favorite plant IDs: $favoritePlantIds")
-                // Ensure OriginalDatabaseHelper has getPlantsByIds method
-                val favoritePlants = originalDbHelper.getPlantsByIds(favoritePlantIds)
-
-                Log.d("CalendarFragment", "Fetched ${favoritePlants.size} favorite plants details.")
-                val calculatedEvents = mutableListOf<CalendarEvent>()
-                favoritePlants.forEach { plant ->
-                    // Calculate events using the default last frost date in the calculator
-                    calculatedEvents.addAll(calendarCalculator.calculateEventsForPlant(plant))
-                }
-
-                Log.d("CalendarFragment", "Calculated ${calculatedEvents.size} total events.")
-
-                // Group events by date for easier lookup and display
-                val groupedEvents = calculatedEvents.groupBy(
-                    { it.date }, // Key is the LocalDate
-                    { "${it.plantName}: ${it.description}" } // Value is the event description string
-                )
-
-                // Update the UI on the Main thread
-                withContext(Dispatchers.Main) {
-                    allCalendarEvents = groupedEvents
-                    Log.d("CalendarFragment", "Events loaded and grouped for UI.")
-                    Toast.makeText(context, "Calendar events loaded", Toast.LENGTH_SHORT).show()
-
-                    // --- Trigger initial UI update for the calendar view ---
-                    // TODO: Refresh your advanced calendar view here to show event markers/dots
-                    // e.g., materialCalendarView.addDecorators(...)
+                    // TODO: If using MaterialCalendarView, update decorators here
                     // updateCalendarDecorators()
-
-                    // Optionally display events for today initially
-                    displayEventsForDate(LocalDate.now(ZoneId.systemDefault()))
-                }
-
-            } catch (e: Exception) {
-                Log.e("CalendarFragment", "Error loading calendar events", e)
-                // Show error message on UI thread
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(context, "Error loading calendar data: ${e.message}", Toast.LENGTH_LONG).show()
                 }
             }
         }
     }
 
-    // Example function to display events when a date is selected (for basic CalendarView)
-    private fun displayEventsForDate(date: LocalDate) {
-        // Ensure binding is not null
-        if (_binding == null) return
+    // --- Remove old loadCalendarEvents function ---
+    // private fun loadCalendarEvents() { ... }
 
-        val eventsForDay = allCalendarEvents[date]
-        val displayTextView = binding.textViewEventsDisplay // Assume you add this ID to your XML
+    /**
+     * Populates the local calendarEvents map based on the list of favorite plants
+     * fetched from the ViewModel and the last frost date.
+     */
+    private fun populateCalendarEvents(plantList: List<PlantEntity>, frostDate: LocalDate) {
+        Log.d("CalendarFragment", "Populating calendar events map...")
+        calendarEvents.clear() // Clear previous events
+
+        if (plantList.isEmpty()) {
+            Log.d("CalendarFragment", "Plant list is empty, no events to populate.")
+            // Optionally update UI to show "No favorites selected"
+            binding.textViewEventsDisplay?.text = "Add plants to your garden to see calendar events."
+            binding.textViewEventsDisplay?.visibility = View.VISIBLE
+            return
+        }
+
+        val calculatedEvents = mutableListOf<CalendarEvent>()
+        plantList.forEach { plantEntity ->
+            // Assuming CalendarCalculator expects PlantData or similar, convert PlantEntity
+            // Use the specific frost date for calculations
+            calculatedEvents.addAll(calendarCalculator.calculateEventsForPlant(plantEntity, frostDate))
+        }
+        Log.d("CalendarFragment", "Calculated ${calculatedEvents.size} total events.")
+
+        // Group events by date and add to the map using the helper
+        calculatedEvents.forEach { event ->
+            addEvent(event.date, "${event.plantName}: ${event.description}")
+        }
+        Log.d("CalendarFragment", "Finished populating calendar events map.")
+        // Optional: Show a toast only if needed, maybe not every time data updates
+        // Toast.makeText(context, "Calendar events updated", Toast.LENGTH_SHORT).show()
+    }
+
+    // Renamed from getSelectedDateFromCalendarView for clarity
+    private fun getCurrentSelectedDateOrDefault(): LocalDate {
+        val milli = binding.calendarView.date // Get selected date in milliseconds
+        return Instant.ofEpochMilli(milli).atZone(ZoneId.systemDefault()).toLocalDate()
+        // Fallback if needed, though calendarView usually has a date selected
+            ?: LocalDate.now(ZoneId.systemDefault())
+    }
+
+
+    private fun setupCalendarViewListener() {
+        binding.calendarView.setOnDateChangeListener { _, year, month, dayOfMonth ->
+            val selectedDate = LocalDate.of(year, month + 1, dayOfMonth) // month is 0-indexed
+            displayEventsForDate(selectedDate)
+        }
+    }
+
+    private fun displayEventsForDate(date: LocalDate) {
+        if (_binding == null) {
+            Log.w("CalendarFragment", "displayEventsForDate called but binding is null")
+            return
+        } // Check binding
+
+        val eventsForDay = calendarEvents[date]
+        val displayTextView = binding.textViewEventsDisplay // Assume ID exists in fragment_calendar.xml
 
         if (eventsForDay.isNullOrEmpty()) {
-            Log.d("CalendarFragment", "No events for $date")
-            displayTextView?.text = "No events for $date"
-            displayTextView?.visibility = View.VISIBLE // Or GONE/INVISIBLE as needed
+            // Log.d("CalendarFragment", "No events for $date")
+            // Keep the previous text or set default message if TextView exists
+            displayTextView?.text = "No scheduled tasks for $date."
+            // displayTextView?.visibility = View.GONE // Or keep visible with message
         } else {
             val eventsText = eventsForDay.joinToString("\n")
-            Log.d("CalendarFragment", "Events for $date:\n$eventsText")
-            displayTextView?.text = "Events for $date:\n$eventsText"
+            Log.d("CalendarFragment", "Displaying events for $date")
+            displayTextView?.text = eventsText // Display only the events, maybe add date separately if needed
             displayTextView?.visibility = View.VISIBLE
         }
     }
 
-    // Example placeholder for updating a better calendar view
-    // private fun updateCalendarDecorators() {
-    //    if (_binding == null) return // Check binding
-    //    val datesWithEvents = allCalendarEvents.keys
-    //    // Assuming you have a reference to your advanced calendar view
-    //    // e.g., binding.materialCalendarView.removeDecorators()
-    //    // binding.materialCalendarView.addDecorator(EventDecorator(datesWithEvents))
-    // }
+    // Helper to add event to the local map (keep this)
+    private fun addEvent(date: LocalDate, message: String) {
+        val eventsForDate = calendarEvents.getOrPut(date) { mutableListOf() }
+        eventsForDate.add(message)
+    }
+
+    // Placeholder for updating MaterialCalendarView decorators later
+    // private fun updateCalendarDecorators() { ... }
 
     override fun onDestroyView() {
         super.onDestroyView()
-        _binding = null // Clean up ViewBinding reference to prevent memory leaks
+        _binding = null
+        Log.d("CalendarFragment", "View destroyed, binding set to null")
     }
 }
-
-// --- REMINDER: You still need to add these methods (or similar) to your Database Helpers ---
-
-// Add to PreloadedDatabaseHelper.kt:
-/*
-fun getFavoritePlantIds(): List<Int> { ... } // See previous response for example
-*/
-
-// Add to OriginalDatabaseHelper.kt:
-/*
-fun getPlantsByIds(ids: List<Int>): List<Plant> { ... } // See previous response for example
-*/
