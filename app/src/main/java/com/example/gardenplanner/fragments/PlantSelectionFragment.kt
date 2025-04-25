@@ -1,145 +1,178 @@
 package com.example.gardenplanner.fragments
 
+import android.graphics.BitmapFactory
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
-import androidx.appcompat.widget.SearchView
+import androidx.appcompat.app.AlertDialog // Use AppCompat AlertDialog
+import androidx.appcompat.widget.SearchView // Use AppCompat SearchView
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.viewModels // Delegate for ViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
-import com.example.gardenplanner.model.Plant
-import com.example.gardenplanner.adapters.PlantAdapter
 import com.example.gardenplanner.R
-import com.example.gardenplanner.adapters.byteArrayToBitmap
-import com.example.gardenplanner.helpers.PreloadedDatabaseHelper
+import com.example.gardenplanner.adapters.PlantAdapter // Import updated adapter
+import com.example.gardenplanner.adapters.byteArrayToBitmap // Import utility function
+import com.example.gardenplanner.data.PlantEntity // Import Room Entity
+import com.example.gardenplanner.databinding.FragmentPlantSelectionBinding // Import ViewBinding
+import com.example.gardenplanner.viewmodel.PlantSelectionViewModel // Import ViewModel
+import kotlinx.coroutines.launch
 
 class PlantSelectionFragment : Fragment() {
 
-    private lateinit var adapter: PlantAdapter
-    private lateinit var plants: MutableList<Plant> // Full list of plants
-    private lateinit var filteredPlants: MutableList<Plant> // Filtered list for RecyclerView
+    private var _binding: FragmentPlantSelectionBinding? = null
+    private val binding get() = _binding!! // ViewBinding property
+
+    // Get ViewModel instance scoped to this Fragment
+    private val viewModel: PlantSelectionViewModel by viewModels()
+
+    // Declare the adapter using the updated PlantAdapter
+    private lateinit var plantAdapter: PlantAdapter
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
-    ): View? {
-        // Inflate the layout for this fragment
-        return inflater.inflate(R.layout.fragment_plant_selection, container, false)
+    ): View {
+        // Inflate using ViewBinding
+        _binding = FragmentPlantSelectionBinding.inflate(inflater, container, false)
+        return binding.root
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // Find the RecyclerView
-        val recyclerView: RecyclerView = view.findViewById(R.id.recycler_view_plants)
-        recyclerView.layoutManager = LinearLayoutManager(requireContext())
+        setupRecyclerView()
+        setupSearchView()
+        observeViewModel()
+    }
 
-        // Query the database for plants
-        val dbHelper = PreloadedDatabaseHelper(requireContext())
-        val db = dbHelper.readableDatabase
-        val cursor = db.rawQuery(
-            "SELECT id, name, image, description, seeding_window, transplant_window, harvest_window FROM Plants ORDER BY name ASC",
-            null
-        )
-
-        plants = mutableListOf()
-        while (cursor.moveToNext()) {
-            val id = cursor.getInt(cursor.getColumnIndexOrThrow("id"))
-            val name = cursor.getString(cursor.getColumnIndexOrThrow("name"))
-            val image = cursor.getBlob(cursor.getColumnIndexOrThrow("image"))
-            val description = cursor.getString(cursor.getColumnIndexOrThrow("description"))
-            val seedingWindow = cursor.getString(cursor.getColumnIndexOrThrow("seeding_window"))
-            val transplantWindow = cursor.getString(cursor.getColumnIndexOrThrow("transplant_window"))
-            val harvestWindow = cursor.getString(cursor.getColumnIndexOrThrow("harvest_window"))
-
-            plants.add(
-                Plant(
-                    id = id,
-                    name = name,
-                    image = image,
-                    description = description,
-                    seedingWindow = seedingWindow,
-                    transplantWindow = transplantWindow,
-                    harvestWindow = harvestWindow
-                )
-            )
-        }
-        cursor.close()
-
-        // Set initial filteredPlants to the full list
-        filteredPlants = plants.toMutableList()
-
-        adapter = PlantAdapter(
-            filteredPlants,
-            onItemClick = { plant ->
-                showPlantPopup(plant) // Handle popup
+    /**
+     * Sets up the RecyclerView with the PlantAdapter.
+     */
+    private fun setupRecyclerView() {
+        // Initialize the adapter, passing lambda functions for click handling
+        plantAdapter = PlantAdapter(
+            onItemClick = { plantEntity ->
+                showPlantPopup(plantEntity) // Call local function to show popup
             },
-            onAddToMyGardenClick = { plant ->
-                addToMyGarden(plant) // Add to "My Garden"
+            onToggleFavoriteClick = { plantEntity ->
+                viewModel.toggleFavorite(plantEntity) // Call ViewModel to handle DB update
+                // Optional: Show immediate feedback, though list will update automatically
+                val message = if (!plantEntity.isFavorite) "${plantEntity.name} added to My Garden" else "${plantEntity.name} removed from My Garden"
+                Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
             }
         )
 
-        recyclerView.adapter = adapter
-
-        // Set up the SearchView
-        val searchView: SearchView = view.findViewById(R.id.search_bar)
-        searchView.setOnClickListener {
-            searchView.isIconified = false
+        // Set up RecyclerView using ViewBinding
+        binding.recyclerViewPlants.apply {
+            layoutManager = LinearLayoutManager(requireContext())
+            adapter = plantAdapter
+            // Optional: Add item decoration
+            // addItemDecoration(...)
         }
-        searchView.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
+        Log.d("PlantSelectionFragment", "RecyclerView setup complete.")
+    }
+
+    /**
+     * Sets up the SearchView listener to update the ViewModel's query.
+     */
+    private fun setupSearchView() {
+        binding.searchBar.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
             override fun onQueryTextSubmit(query: String?): Boolean {
-                // Handle search button press if needed (optional)
-                return false
+                // Hide keyboard maybe
+                binding.searchBar.clearFocus()
+                return true // Indicate query handled (optional)
             }
 
             override fun onQueryTextChange(newText: String?): Boolean {
-                // Filter the list as the user types
-                val query = newText?.lowercase() ?: ""
-                filteredPlants.clear()
-                filteredPlants.addAll(
-                    plants.filter { it.name.lowercase().contains(query) }
-                )
-                adapter.notifyDataSetChanged()
-                return true
+                // Update the ViewModel's search query as the user types
+                viewModel.setSearchQuery(newText.orEmpty())
+                return true // Indicate query handled
             }
         })
+        // Optional: Make search view expanded by default
+        // binding.searchBar.isIconified = false
+        // binding.searchBar.onActionViewExpanded()
     }
 
-    private fun showPlantPopup(plant: Plant) {
+    /**
+     * Observes the StateFlows from the ViewModel and updates the UI accordingly.
+     */
+    private fun observeViewModel() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                // Observe the filtered list of plants
+                viewModel.filteredPlants.collect { plants ->
+                    Log.d("PlantSelectionFragment", "Submitting ${plants.size} plants to adapter.")
+                    // Submit the list to the ListAdapter for efficient updates
+                    plantAdapter.submitList(plants)
+                }
+            }
+        }
+        // You could also observe viewModel.searchQuery if needed for other UI updates
+    }
+
+    /**
+     * Shows the plant details popup using data from the PlantEntity.
+     * @param plant The PlantEntity object to display details for.
+     */
+    private fun showPlantPopup(plant: PlantEntity) {
+        // Inflate the custom layout for the popup.
         val dialogView = LayoutInflater.from(requireContext())
-            .inflate(R.layout.popup_plant_details, null)
-        val dialog = androidx.appcompat.app.AlertDialog.Builder(requireContext())
+            .inflate(R.layout.popup_plant_details, null) // Use your popup layout file
+
+        // Build the AlertDialog
+        val dialog = AlertDialog.Builder(requireContext())
             .setView(dialogView)
             .create()
 
-        // Populate the popup with plant data
-        dialogView.findViewById<TextView>(R.id.popup_plant_name).text = plant.name
-        dialogView.findViewById<TextView>(R.id.popup_plant_description).text = plant.description
-        dialogView.findViewById<TextView>(R.id.popup_plant_seeding_window).text = plant.seedingWindow
-        dialogView.findViewById<TextView>(R.id.popup_plant_transplant_window).text = plant.transplantWindow
-        dialogView.findViewById<TextView>(R.id.popup_plant_harvest_window).text = plant.harvestWindow
+        // --- Populate the views inside the popup ---
+        // Find views using findViewById on the inflated dialogView
+        val nameTextView: TextView = dialogView.findViewById(R.id.popup_plant_name)
+        val descriptionTextView: TextView = dialogView.findViewById(R.id.popup_plant_description)
+        val imageView: ImageView = dialogView.findViewById(R.id.popup_plant_image)
+        // Find TextViews for the descriptive windows (you might remove these later)
+        val seedingWindowTextView: TextView = dialogView.findViewById(R.id.popup_plant_seeding_window)
+        val transplantWindowTextView: TextView = dialogView.findViewById(R.id.popup_plant_transplant_window)
+        val harvestWindowTextView: TextView = dialogView.findViewById(R.id.popup_plant_harvest_window)
+        // Add finds for indoorsWindow, directSowWindow if they are in the layout
 
-        // Convert the byte array to a bitmap for the image
+        // Set data from PlantEntity
+        nameTextView.text = plant.name
+        descriptionTextView.text = plant.description ?: "No description available." // Handle null description
+        seedingWindowTextView.text = plant.seedingWindow ?: "N/A"
+        transplantWindowTextView.text = plant.transplantWindow ?: "N/A"
+        harvestWindowTextView.text = plant.harvestWindow ?: "N/A"
+        // Set other window TextViews if needed
+
+        // Set image
         val bitmap = byteArrayToBitmap(plant.image)
-        dialogView.findViewById<ImageView>(R.id.popup_plant_image).setImageBitmap(bitmap)
+        if (bitmap != null) {
+            imageView.setImageBitmap(bitmap)
+        } else {
+            imageView.setImageResource(R.drawable.placeholder_image) // Use placeholder
+        }
 
+        // Show the dialog
         dialog.show()
+        Log.d("PlantSelectionFragment", "Showing popup for ${plant.name}")
     }
 
-    private fun addToMyGarden(plant: Plant) {
-        val dbHelper = PreloadedDatabaseHelper(requireContext())
-        val db = dbHelper.writableDatabase
 
-        // Insert plant into MyGarden table if not already added
-        val insertQuery = "INSERT OR IGNORE INTO MyGarden (id, name) VALUES (?, ?)"
-        db.execSQL(insertQuery, arrayOf(plant.id, plant.name))
-
-        // Optionally show a confirmation
-        Toast.makeText(requireContext(), "${plant.name} added to My Garden", Toast.LENGTH_SHORT).show()
+    /**
+     * Cleans up the binding when the view is destroyed.
+     */
+    override fun onDestroyView() {
+        super.onDestroyView()
+        binding.recyclerViewPlants.adapter = null // Prevent memory leaks from adapter
+        _binding = null // Clear binding reference
+        Log.d("PlantSelectionFragment", "View destroyed, binding cleared.")
     }
-
 }

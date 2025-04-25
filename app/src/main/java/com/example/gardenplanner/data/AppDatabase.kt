@@ -4,58 +4,79 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
-import android.util.Log // For logging
+import android.util.Log
+import java.io.IOException // Import IOException
 
-/**
- * The Room database class for the application.
- * Contains the plant_definitions table.
- */
-// Make sure PlantEntity is listed in entities
-// Increment version number if you change the schema OR the asset file content
 @Database(entities = [PlantEntity::class], version = 1, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
 
-    // Abstract function for Room to provide the DAO implementation
     abstract fun plantDao(): PlantDao
 
     companion object {
-        // Singleton prevents multiple instances of the database opening concurrently.
         @Volatile
         private var INSTANCE: AppDatabase? = null
 
-        // Name for the database file created in the app's private storage
         private const val DATABASE_NAME = "plants.db"
-        // Path WITHIN the assets folder to your pre-populated database file
-        private const val ASSET_DB_PATH = "database/plant_database_v1.db" // Verify this path is correct
+        private const val ASSET_DB_PATH = "database/plant_database_v1.db" // Verify this path
 
         private const val TAG = "AppDatabase" // Tag for logging
 
         fun getDatabase(context: Context): AppDatabase {
-            // Return existing instance if available, otherwise create it synchronized
-            return INSTANCE ?: synchronized(this) {
+            // Use existing instance if available
+            val tempInstance = INSTANCE
+            if (tempInstance != null) {
+                return tempInstance
+            }
+
+            // If instance is null, create it synchronized
+            synchronized(this) {
+                // Double-check inside synchronized block
+                val existingInstance = INSTANCE
+                if (existingInstance != null) {
+                    return existingInstance
+                }
+
+                Log.i(TAG, "Database instance is null, attempting to build...")
+                Log.d(TAG, "Asset path: $ASSET_DB_PATH")
+                Log.d(TAG, "Internal DB name: $DATABASE_NAME")
+
+                // *** Add check for asset existence ***
+                try {
+                    context.applicationContext.assets.open(ASSET_DB_PATH).close()
+                    Log.i(TAG, "Asset file '$ASSET_DB_PATH' found successfully.")
+                } catch (ioException: IOException) {
+                    Log.e(TAG, "!!! Asset file '$ASSET_DB_PATH' not found or cannot be opened !!!", ioException)
+                    // Optionally throw a more specific error here if needed
+                    // throw RuntimeException("Database asset not found at $ASSET_DB_PATH", ioException)
+                }
+                // *** End asset check ***
+
+                Log.d(TAG, "Calling Room.databaseBuilder...")
                 val instance = Room.databaseBuilder(
-                    context.applicationContext, // Use application context
+                    context.applicationContext,
                     AppDatabase::class.java,
-                    DATABASE_NAME // The name of the DB file Room will manage
+                    DATABASE_NAME
                 )
-                    // ** Crucial: Copy the database from assets the first time it's created **
-                    // Room handles checking if the DB already exists. It only copies from assets
-                    // if the database file specified by DATABASE_NAME doesn't exist in the app's
-                    // internal storage yet.
                     .createFromAsset(ASSET_DB_PATH)
-                    // ** Migration Strategy **
-                    // If you update the database schema (change PlantEntity or @Database version),
-                    // Room needs to know how to handle existing user data.
-                    // Option A (Development): Destroys and recreates the DB. User data is lost.
                     .fallbackToDestructiveMigration()
-                    // Option B (Production): Provide Migration objects to preserve data.
-                    // .addMigrations(MIGRATION_1_2, MIGRATION_2_3) // Define these elsewhere
+                    // Add logging callback for more insight (optional but helpful)
+                    .addCallback(object : RoomDatabase.Callback() {
+                        override fun onCreate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                            super.onCreate(db)
+                            Log.i(TAG, "RoomDatabase.Callback: onCreate called (DB was created, asset likely copied). DB path: ${db.path}")
+                        }
+                        override fun onOpen(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                            super.onOpen(db)
+                            Log.i(TAG, "RoomDatabase.Callback: onOpen called (Existing DB opened). DB path: ${db.path}, Version: ${db.version}")
+                        }
+                    })
                     .build()
-                Log.i(TAG, "Database instance created or retrieved.")
+                Log.i(TAG, "Room.databaseBuilder finished.")
+
                 INSTANCE = instance
-                // Return the instance
-                instance
+                return instance
             }
         }
     }
 }
+    

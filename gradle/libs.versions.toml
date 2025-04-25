@@ -1,7 +1,7 @@
 # gradle/libs.versions.toml
 
 [versions]
-agp = "8.9.1"
+agp = "8.9.2"
 kotlin = "1.9.24"
 coreKtx = "1.10.1"
 junit = "4.13.2"
@@ -15,6 +15,7 @@ lifecycleViewmodelKtx = "2.6.1"
 navigationFragmentKtx = "2.6.0"
 navigationUiKtx = "2.6.0"
 room = "2.6.1" #added Room version
+materialCalendarview = "2.0.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -33,6 +34,8 @@ androidx-room-runtime = { group = "androidx.room", name = "room-runtime", versio
 androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
 androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
 # --- End Room Libraries ---
+# --- Added Material Calendar View Library ---
+material-calendarview = { group = "com.github.prolificinteractive", name = "material-calendarview", version.ref = "materialCalendarview" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

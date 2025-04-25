@@ -2,42 +2,41 @@
 <androidx.constraintlayout.widget.ConstraintLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    tools:context=".fragments.MyGardenFragment">
 
-    <!-- Empty State Button (centered) -->
     <Button
         android:id="@+id/btn_select_plants"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Select My Plants"
-        android:visibility="visible"
+        android:text="@string/mygarden_select_plants_button"
+        android:visibility="gone"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
-    <!-- Fragment Container to host FavoritedItemsFragment -->
-    <FrameLayout
-        android:id="@+id/container_favorited_items"
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recycler_view_my_garden"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:visibility="visible"
+        android:visibility="gone"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
-
-    <!-- Floating Action Button (FAB) positioned above bottom nav bar) -->
-    <com.google.android.material.floatingactionbutton.FloatingActionButton
-        android:id="@+id/fab_add_plant"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:src="@drawable/ic_plus"
-        android:contentDescription="Add Plant"
-        android:visibility="gone"
-        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginBottom="80dp"
-        android:layout_marginEnd="16dp" />
+        tools:listitem="@layout/item_plant_my_garden"/>
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+    android:id="@+id/fab_add_plant"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_marginEnd="16dp"
+    android:layout_marginBottom="80dp"
+        android:contentDescription="@string/mygarden_add_plant_fab_desc"
+    android:src="@drawable/ic_plus" android:visibility="gone" app:layout_constraintBottom_toBottomOf="parent"
+    app:layout_constraintEnd_toEndOf="parent" />
+
 </androidx.constraintlayout.widget.ConstraintLayout>

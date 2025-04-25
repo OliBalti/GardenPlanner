@@ -13,4 +13,9 @@
         <item name="android:statusBarColor">?attr/colorPrimaryVariant</item>
         <!-- Customize your theme here. -->
     </style>
+
+    <style name="CalendarDateText" parent="TextAppearance.AppCompat.Body1">
+        <item name="android:textColor">@color/my_date_color</item>
+    </style>
+
 </resources>

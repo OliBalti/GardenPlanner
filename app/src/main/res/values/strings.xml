@@ -6,4 +6,10 @@
     <string name="title_calendar">Calendar</string>
     <string name="plantSelectionFragment">Select Plants</string>
 
+    <string name="calendar_select_date_prompt">Select a date to see details.</string>
+    <string name="calendar_no_tasks">No scheduled tasks for %1$s.</string>
+
+    <string name="mygarden_select_plants_button">Select My Plants</string>
+    <string name="mygarden_add_plant_fab_desc">Add more plants</string>
+
 </resources>

@@ -9,7 +9,6 @@ import androidx.navigation.ui.AppBarConfiguration
 import androidx.navigation.ui.setupActionBarWithNavController
 import androidx.navigation.ui.setupWithNavController
 import com.example.gardenplanner.databinding.ActivityMainBinding
-import com.example.gardenplanner.helpers.PreloadedDatabaseHelper
 
 class MainActivity : AppCompatActivity() {
 
@@ -67,23 +66,7 @@ class MainActivity : AppCompatActivity() {
         Log.d("MainActivity", "Navigation setup completed successfully.")
 
         // Initialize and test the database
-        initializeAndTestDatabase()
-    }
-
-    // Function to initialize and test the database
-    private fun initializeAndTestDatabase() {
-        val dbHelper = PreloadedDatabaseHelper(this)
-
-        // Test database connection (optional)
-        val db = dbHelper.getReadableDatabase()
-        val cursor = db.rawQuery("SELECT * FROM Plants", null)
-        if (cursor.moveToFirst()) {
-            do {
-                val plantName = cursor.getString(cursor.getColumnIndexOrThrow("name"))
-                Log.d("Database", "Plant Name: $plantName")
-            } while (cursor.moveToNext())
-        }
-        cursor.close()
+        // initializeAndTestDatabase()
     }
 
     // Handle Up navigation

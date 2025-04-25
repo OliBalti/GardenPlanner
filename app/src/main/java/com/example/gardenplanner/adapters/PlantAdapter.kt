@@ -1,116 +1,138 @@
 package com.example.gardenplanner.adapters
 
-import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.view.LayoutInflater
-import android.view.View
 import android.view.ViewGroup
-import android.widget.ImageView
-import android.widget.PopupWindow
-import android.widget.TextView
-import androidx.recyclerview.widget.RecyclerView
-import android.view.Gravity
-import android.graphics.drawable.ColorDrawable
-import android.graphics.Color
 import android.widget.ImageButton
-import androidx.appcompat.app.AppCompatActivity
-import com.example.gardenplanner.model.Plant
+import androidx.recyclerview.widget.DiffUtil
+import androidx.recyclerview.widget.ListAdapter
+import androidx.recyclerview.widget.RecyclerView
 import com.example.gardenplanner.R
+import com.example.gardenplanner.data.PlantEntity // *** Use PlantEntity ***
+import com.example.gardenplanner.databinding.ItemPlantBinding // *** Import ViewBinding ***
 
-// Utility function to convert ByteArray to Bitmap
+// Utility function (can be moved to a helper file later)
 fun byteArrayToBitmap(byteArray: ByteArray?): Bitmap? {
-    return if (byteArray != null) {
-        BitmapFactory.decodeByteArray(byteArray, 0, byteArray.size)
+    return if (byteArray != null && byteArray.isNotEmpty()) {
+        try {
+            BitmapFactory.decodeByteArray(byteArray, 0, byteArray.size)
+        } catch (e: Exception) {
+            // Log error or return null if decoding fails
+            null
+        }
     } else {
         null
     }
 }
 
+/**
+ * Adapter for the RecyclerView in PlantSelectionFragment.
+ * Uses ListAdapter for efficient updates and displays PlantEntity data.
+ *
+ * @param onItemClick Lambda function to execute when an item (excluding the button) is clicked.
+ * @param onToggleFavoriteClick Lambda function to execute when the favorite (+) button is clicked.
+ */
 class PlantAdapter(
-    private val plants: List<Plant>,
-    private val onItemClick: (Plant) -> Unit,
-    private val onAddToMyGardenClick: (Plant) -> Unit
-) : RecyclerView.Adapter<PlantAdapter.PlantViewHolder>() {
+    private val onItemClick: (PlantEntity) -> Unit,
+    private val onToggleFavoriteClick: (PlantEntity) -> Unit
+) : ListAdapter<PlantEntity, PlantAdapter.PlantViewHolder>(PlantDiffCallback()) { // *** Extend ListAdapter ***
 
-    // ViewHolder class to bind plant data
-    class PlantViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        val name: TextView = itemView.findViewById(R.id.text_plant_name)
-        val image: ImageView = itemView.findViewById(R.id.image_plant)
-        val addButton: ImageButton = itemView.findViewById(R.id.btn_add_to_my_garden)
+    /**
+     * ViewHolder class using ViewBinding.
+     */
+    inner class PlantViewHolder(private val binding: ItemPlantBinding) : // *** Use ViewBinding ***
+        RecyclerView.ViewHolder(binding.root) {
+
+        /**
+         * Binds PlantEntity data to the views.
+         * @param plant The PlantEntity object for the current item.
+         */
+        fun bind(plant: PlantEntity) {
+            binding.textPlantName.text = plant.name // Use binding reference
+
+            // Set image using the utility function
+            val bitmap = byteArrayToBitmap(plant.image)
+            if (bitmap != null) {
+                binding.imagePlant.setImageBitmap(bitmap) // Use binding reference
+            } else {
+                // Use a placeholder image if no image is available
+                binding.imagePlant.setImageResource(R.drawable.placeholder_image) // Ensure placeholder exists
+            }
+
+            // Update the favorite button's appearance based on the plant's status
+            updateFavoriteButton(binding.btnAddToMyGarden, plant.isFavorite)
+
+            // Set click listener for the favorite button
+            binding.btnAddToMyGarden.setOnClickListener {
+                onToggleFavoriteClick(plant)
+                // Optional: Update button immediately for better UX, though list update will follow
+                // updateFavoriteButton(binding.btnAddToMyGarden, !plant.isFavorite)
+            }
+
+            // Set click listener for the entire item view (excluding the button)
+            binding.root.setOnClickListener {
+                onItemClick(plant)
+            }
+        }
+
+        /**
+         * Updates the visual state of the favorite button.
+         * @param button The ImageButton view.
+         * @param isFavorite The current favorite state of the plant.
+         */
+        private fun updateFavoriteButton(button: ImageButton, isFavorite: Boolean) {
+            if (isFavorite) {
+                // Set icon to indicate "favorited" (e.g., a filled heart or checkmark)
+                button.setImageResource(R.drawable.ic_favorited) // *** Use appropriate drawable ***
+                button.contentDescription = "Remove from My Garden" // Accessibility
+            } else {
+                // Set icon to indicate "not favorited" (e.g., plus sign or empty heart)
+                button.setImageResource(R.drawable.ic_plus) // *** Use appropriate drawable ***
+                button.contentDescription = "Add to My Garden" // Accessibility
+            }
+        }
     }
 
+    /**
+     * Creates new ViewHolders (invoked by the layout manager).
+     */
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): PlantViewHolder {
-        val view = LayoutInflater.from(parent.context)
-            .inflate(R.layout.item_plant, parent, false)
-        return PlantViewHolder(view)
+        // Inflate the layout using ViewBinding
+        val binding = ItemPlantBinding.inflate(LayoutInflater.from(parent.context), parent, false)
+        return PlantViewHolder(binding)
     }
 
+    /**
+     * Replaces the contents of a ViewHolder (invoked by the layout manager).
+     */
     override fun onBindViewHolder(holder: PlantViewHolder, position: Int) {
-        val plant = plants[position]
-        holder.name.text = plant.name
+        val plant = getItem(position) // Get item using ListAdapter's method
+        holder.bind(plant)
+    }
+}
 
-        // Convert ByteArray to Bitmap and set to ImageView
-        val bitmap = byteArrayToBitmap(plant.image)
-        if (bitmap != null) {
-            holder.image.setImageBitmap(bitmap)
-        } else {
-            // Use a placeholder image if no image is available
-            holder.image.setImageResource(R.drawable.placeholder_image)
-        }
-
-        // Handle Plus button click
-        holder.addButton.setOnClickListener {
-            onAddToMyGardenClick(plant)
-        }
-
-        // Handle item click to show a pop-up
-        holder.itemView.setOnClickListener {
-            onItemClick(plant) // Pass the full Plant object to the click handler
-        }
-
+/**
+ * DiffUtil.ItemCallback for calculating differences between two PlantEntity lists.
+ * This allows ListAdapter to perform efficient updates.
+ */
+class PlantDiffCallback : DiffUtil.ItemCallback<PlantEntity>() {
+    /**
+     * Called to check whether two items represent the same object.
+     * If items have unique IDs, this check should be based on IDs.
+     */
+    override fun areItemsTheSame(oldItem: PlantEntity, newItem: PlantEntity): Boolean {
+        return oldItem.id == newItem.id
     }
 
-    override fun getItemCount(): Int = plants.size
-
-    // Step 2: Create a function to display a pop-up window
-    private fun showPlantDetailsPopup(context: Context, plant: Plant) {
-        // Inflate the popup layout
-        val popupView = LayoutInflater.from(context).inflate(R.layout.popup_plant_details, null)
-
-        // Create the popup window
-        val popupWindow = PopupWindow(
-            popupView,
-            ViewGroup.LayoutParams.MATCH_PARENT,
-            ViewGroup.LayoutParams.WRAP_CONTENT,
-            true
-        )
-
-        // Set the popup data
-        val plantName: TextView = popupView.findViewById(R.id.popup_plant_name)
-        val plantImage: ImageView = popupView.findViewById(R.id.popup_plant_image)
-        val plantDescription: TextView = popupView.findViewById(R.id.popup_plant_description)
-        val seedingWindow: TextView = popupView.findViewById(R.id.popup_plant_seeding_window)
-        val harvestWindow: TextView = popupView.findViewById(R.id.popup_plant_harvest_window)
-
-        plantName.text = plant.name
-        plantImage.setImageBitmap(byteArrayToBitmap(plant.image))
-        plantDescription.text = "Description: ${plant.description}"
-        seedingWindow.text = "Seeding Window: ${plant.seedingWindow}"
-        harvestWindow.text = "Harvest Window: ${plant.harvestWindow}"
-
-        // Dim the background behind the popup
-        val parentView = (context as AppCompatActivity).window.decorView
-        val background = ColorDrawable(Color.BLACK)
-        background.alpha = 160 // Adjust opacity (0-255)
-        parentView.overlay.add(background)
-
-        // Remove the dimmed background when the popup is dismissed
-        popupWindow.setOnDismissListener {
-            parentView.overlay.remove(background)
-        }
-
-        // Show the popup at the center
-        popupWindow.showAtLocation(popupView, Gravity.CENTER, 0, 0)
+    /**
+     * Called to check whether two items have the same data.
+     * This check should compare all relevant fields that affect the UI representation.
+     * The auto-generated equals method (excluding ByteArray) is suitable here.
+     */
+    override fun areContentsTheSame(oldItem: PlantEntity, newItem: PlantEntity): Boolean {
+        // Use the data class's equals method (make sure it's correctly implemented,
+        // especially regarding the ByteArray comparison if needed visually).
+        return oldItem == newItem
     }
 }

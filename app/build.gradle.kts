@@ -66,6 +66,9 @@ dependencies {
     kapt(libs.androidx.room.compiler)           // Uses alias from libs.versions.toml
     // --- End Room ---
 
+    // Material Calendar View
+    implementation(libs.material.calendarview)
+
     // Unit Testing
     testImplementation(libs.junit)
 

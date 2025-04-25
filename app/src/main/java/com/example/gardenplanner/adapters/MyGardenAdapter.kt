@@ -1,53 +1,80 @@
 package com.example.gardenplanner.adapters
 
 import android.view.LayoutInflater
-import android.view.View
 import android.view.ViewGroup
-import android.widget.Button
-import android.widget.ImageView
-import android.widget.TextView
+import androidx.recyclerview.widget.DiffUtil // Import DiffUtil
+import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
-import com.example.gardenplanner.model.Plant
-import com.example.gardenplanner.R
+import com.example.gardenplanner.data.PlantEntity // *** Use PlantEntity ***
+import com.example.gardenplanner.databinding.ItemPlantMyGardenBinding // *** Import ViewBinding ***
+import com.example.gardenplanner.R // Import R
 
+/**
+ * Adapter for the RecyclerView in MyGardenFragment (displaying favorite plants).
+ * Uses ListAdapter for efficient updates and displays PlantEntity data.
+ *
+ * @param onItemClick Lambda function to execute when an item (excluding the button) is clicked.
+ * @param onRemoveClick Lambda function to execute when the remove button is clicked.
+ */
 class MyGardenAdapter(
-    private val plants: List<Plant>,
-    private val onRemoveClick: (Plant) -> Unit,
-    private val onItemClick: (Plant) -> Unit // NEW: callback for plant popup
-) : RecyclerView.Adapter<MyGardenAdapter.PlantViewHolder>() {
+    private val onItemClick: (PlantEntity) -> Unit,
+    private val onRemoveClick: (PlantEntity) -> Unit // Renamed for clarity (toggles favorite off)
+) : ListAdapter<PlantEntity, MyGardenAdapter.PlantViewHolder>(PlantDiffCallback()) { // *** Extend ListAdapter, reuse DiffCallback ***
 
-    inner class PlantViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        val name: TextView = itemView.findViewById(R.id.text_plant_name)
-        val image: ImageView = itemView.findViewById(R.id.image_plant)
-        val removeButton: Button = itemView.findViewById(R.id.btn_remove_plant)
+    /**
+     * ViewHolder class using ViewBinding.
+     */
+    inner class PlantViewHolder(private val binding: ItemPlantMyGardenBinding) : // *** Use ViewBinding ***
+        RecyclerView.ViewHolder(binding.root) {
 
-        init {
-            itemView.setOnClickListener {
-                val plant = plants[adapterPosition]
-                onItemClick(plant) // Call the popup callback
+        /**
+         * Binds PlantEntity data to the views.
+         * @param plant The PlantEntity object for the current item.
+         */
+        fun bind(plant: PlantEntity) {
+            binding.textPlantName.text = plant.name // Use binding reference
+
+            // Set image using the utility function
+            val bitmap = byteArrayToBitmap(plant.image)
+            if (bitmap != null) {
+                binding.imagePlant.setImageBitmap(bitmap) // Use binding reference
+            } else {
+                binding.imagePlant.setImageResource(R.drawable.placeholder_image) // Ensure placeholder exists
+            }
+
+            // Set click listener for the remove button
+            // This button will now trigger the toggleFavorite function in the ViewModel
+            binding.btnRemovePlant.setOnClickListener {
+                onRemoveClick(plant)
+            }
+
+            // Set click listener for the entire item view
+            binding.root.setOnClickListener {
+                onItemClick(plant)
             }
         }
     }
 
+    /**
+     * Creates new ViewHolders (invoked by the layout manager).
+     */
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): PlantViewHolder {
-        val view = LayoutInflater.from(parent.context)
-            .inflate(R.layout.item_plant_my_garden, parent, false)
-        return PlantViewHolder(view)
+        // Inflate the layout using ViewBinding
+        val binding = ItemPlantMyGardenBinding.inflate(LayoutInflater.from(parent.context), parent, false)
+        return PlantViewHolder(binding)
     }
 
+    /**
+     * Replaces the contents of a ViewHolder (invoked by the layout manager).
+     */
     override fun onBindViewHolder(holder: PlantViewHolder, position: Int) {
-        val plant = plants[position]
-        holder.name.text = plant.name
-
-        // Convert ByteArray to Bitmap and set it to ImageView
-        val bitmap = byteArrayToBitmap(plant.image)
-        holder.image.setImageBitmap(bitmap)
-
-        // Remove button logic
-        holder.removeButton.setOnClickListener {
-            onRemoveClick(plant)
-        }
+        val plant = getItem(position) // Get item using ListAdapter's method
+        holder.bind(plant)
     }
 
-    override fun getItemCount(): Int = plants.size
+    // NOTE: getItemCount is handled by ListAdapter automatically.
 }
+
+// We can reuse the same PlantDiffCallback defined in PlantAdapter.kt
+// If you prefer, you can move PlantDiffCallback to its own file.
+// class PlantDiffCallback : DiffUtil.ItemCallback<PlantEntity>() { ... }

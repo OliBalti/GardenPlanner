@@ -1,54 +1,45 @@
-package com.example.gardenplanner.fragments // Correct package name
+package com.example.gardenplanner.fragments // Ensure package matches
 
-// Import necessary components
+import android.graphics.Color // Import Color for decorator
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Toast // For simple feedback
+import androidx.core.content.ContextCompat // Use ContextCompat for color resources
 import androidx.fragment.app.Fragment
-import androidx.fragment.app.viewModels // Import for ViewModel delegate
+import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.lifecycleScope // Import for coroutines
+import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import com.example.gardenplanner.R // Import R for resources like colors
 import com.example.gardenplanner.data.PlantEntity
-import com.example.gardenplanner.databinding.FragmentCalendarBinding // Use ViewBinding
-import com.example.gardenplanner.helpers.CalendarCalculator // Keep calculator
-import com.example.gardenplanner.helpers.CalendarEvent // Keep event helper
-// Removed Database Helper imports as ViewModel handles DB access
-// import com.example.gardenplanner.helpers.OriginalDatabaseHelper
-// import com.example.gardenplanner.helpers.PreloadedDatabaseHelper
+import com.example.gardenplanner.databinding.FragmentCalendarBinding // Your ViewBinding class
+import com.example.gardenplanner.helpers.CalendarCalculator
+import com.example.gardenplanner.helpers.CalendarEvent
+import com.example.gardenplanner.helpers.EventDecorator // *** Import your EventDecorator ***
 import com.example.gardenplanner.viewmodel.CalendarViewModel
-import kotlinx.coroutines.launch // Import launch
-// Removed Dispatchers imports, ViewModel handles threading
-// import kotlinx.coroutines.Dispatchers
-// import kotlinx.coroutines.withContext
-import java.time.Instant
+import com.prolificinteractive.materialcalendarview.CalendarDay
+import com.prolificinteractive.materialcalendarview.MaterialCalendarView
+import com.prolificinteractive.materialcalendarview.OnDateSelectedListener
+import kotlinx.coroutines.launch
 import java.time.LocalDate
-import java.time.ZoneId
 
-class CalendarFragment : Fragment() {
+// Implement the listener interface for date selection
+class CalendarFragment : Fragment(), OnDateSelectedListener {
 
-    // Use ViewBinding
     private var _binding: FragmentCalendarBinding? = null
-    private val binding get() = _binding!!
+    private val binding get() = _binding!! // Use ViewBinding
 
-    // --- Get instance of ViewModel ---
     private val viewModel: CalendarViewModel by viewModels()
-
-    // --- Remove direct DB Helpers ---
-    // private lateinit var preloadedDbHelper: PreloadedDatabaseHelper
-    // private lateinit var originalDbHelper: OriginalDatabaseHelper
-
-    // Keep calculator (will be used inside populateCalendarEvents)
     private lateinit var calendarCalculator: CalendarCalculator
 
-    // Store calculated events locally in Fragment for display (populated by observing ViewModel)
+    // Map storing calculated events (Date -> List of descriptions) for detail view
     private val calendarEvents = mutableMapOf<LocalDate, MutableList<String>>()
+    // Set to store just the unique dates that have events, used by the decorator
+    private val eventDates = HashSet<CalendarDay>() // *** Added Set for decorator dates ***
 
-    // Define Last Frost Date (temporary - fetch from ViewModel/Prefs later)
-    // TODO: Make this configurable or fetch from settings/ViewModel
+    // TODO: Make lastFrostDate dynamic later
     private val lastFrostDate: LocalDate = LocalDate.of(LocalDate.now().year, 5, 15)
 
     override fun onCreateView(
@@ -62,120 +53,165 @@ class CalendarFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // Initialize Calculator (can be done here or inside populateCalendarEvents)
         calendarCalculator = CalendarCalculator()
 
-        // --- Remove direct loading call ---
-        // loadCalendarEvents()
+        // --- Setup MaterialCalendarView Listener ---
+        binding.materialCalendarView.setOnDateChangedListener(this) // Set listener
 
-        // --- Setup Date Selection Listener ---
-        setupCalendarViewListener()
+        // Set current day selection (optional, good UX)
+        binding.materialCalendarView.selectedDate = CalendarDay.today()
 
-        // --- Observe the favorite plants from the ViewModel ---
+        // Observe favorite plants from ViewModel
         viewLifecycleOwner.lifecycleScope.launch {
-            // repeatOnLifecycle ensures collection stops when view is destroyed
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                Log.d("CalendarFragment", "Starting to collect favorite plants from ViewModel")
+                Log.d("CalendarFragment", "Observing favorite plants...")
                 viewModel.favoritePlants.collect { favoritesList ->
-                    Log.d("CalendarFragment", "Received ${favoritesList.size} favorite plants from ViewModel.")
-                    // Populate the local event map using the fetched favorites and frost date
-                    populateCalendarEvents(favoritesList, lastFrostDate)
+                    Log.d("CalendarFragment", "Favorites updated: ${favoritesList.size} items")
 
-                    // Refresh the display for the currently selected/default date
-                    // Get current selection or default to today
-                    val currentDate = getCurrentSelectedDateOrDefault()
-                    Log.d("CalendarFragment", "Refreshing display for date: $currentDate")
-                    displayEventsForDate(currentDate)
+                    // *** Populate the event map AND the eventDates set ***
+                    populateEventsAndDates(favoritesList, lastFrostDate)
 
-                    // TODO: If using MaterialCalendarView, update decorators here
-                    // updateCalendarDecorators()
+                    // *** Apply the decorator to the calendar ***
+                    updateCalendarDecorators()
+
+                    // Refresh display for currently selected date after data load/update
+                    refreshDisplayForSelection()
                 }
             }
         }
+        // Initial display update for today when view is first created
+        refreshDisplayForSelection()
     }
-
-    // --- Remove old loadCalendarEvents function ---
-    // private fun loadCalendarEvents() { ... }
 
     /**
-     * Populates the local calendarEvents map based on the list of favorite plants
-     * fetched from the ViewModel and the last frost date.
+     * Handles clicks on dates in the MaterialCalendarView.
      */
-    private fun populateCalendarEvents(plantList: List<PlantEntity>, frostDate: LocalDate) {
-        Log.d("CalendarFragment", "Populating calendar events map...")
-        calendarEvents.clear() // Clear previous events
+    override fun onDateSelected(
+        widget: MaterialCalendarView,
+        date: CalendarDay,
+        selected: Boolean
+    ) {
+        if (selected) {
+            // Convert selected CalendarDay to LocalDate and display events
+            val selectedLocalDate = LocalDate.of(date.year, date.month, date.day)
+            Log.d("CalendarFragment", "Date selected via listener: $selectedLocalDate")
+            displayEventsForDate(selectedLocalDate)
+        } else {
+            // Optional: Clear the TextView if a date is deselected
+            binding.textViewEventsDisplay.text = getString(R.string.calendar_select_date_prompt)
+        }
+    }
+
+    /**
+     * Populates both the calendarEvents map (for detail display) and
+     * the eventDates set (for the decorator), based on the fetched plant list.
+     * Renamed from populateCalendarEvents for clarity.
+     */
+    private fun populateEventsAndDates(plantList: List<PlantEntity>, frostDate: LocalDate) {
+        // Clear previous data
+        calendarEvents.clear()
+        eventDates.clear() // *** Clear the set too ***
+        Log.d("CalendarFragment", "Populating events and dates for ${plantList.size} plants.")
 
         if (plantList.isEmpty()) {
-            Log.d("CalendarFragment", "Plant list is empty, no events to populate.")
-            // Optionally update UI to show "No favorites selected"
-            binding.textViewEventsDisplay?.text = "Add plants to your garden to see calendar events."
-            binding.textViewEventsDisplay?.visibility = View.VISIBLE
-            return
+            Log.d("CalendarFragment", "Plant list is empty.")
+            // Ensure decorators are cleared if list becomes empty
+            // (updateCalendarDecorators will handle this after this function returns)
+            return // Nothing more to do
         }
 
-        val calculatedEvents = mutableListOf<CalendarEvent>()
+        // Calculate events for each favorited plant
         plantList.forEach { plantEntity ->
-            // Assuming CalendarCalculator expects PlantData or similar, convert PlantEntity
-            // Use the specific frost date for calculations
-            calculatedEvents.addAll(calendarCalculator.calculateEventsForPlant(plantEntity, frostDate))
+            try {
+                val calculated = calendarCalculator.calculateEventsForPlant(plantEntity, frostDate)
+                calculated.forEach { event ->
+                    // Add description to map for the detail view
+                    addEventDescription(event.date, "${event.plantName}: ${event.description}")
+                    // *** Add date to set for the decorator ***
+                    eventDates.add(CalendarDay.from(event.date.year, event.date.monthValue, event.date.dayOfMonth))
+                }
+            } catch (e: Exception) {
+                Log.e("CalendarFragment", "Error calculating events for plant ${plantEntity.name}", e)
+            }
         }
-        Log.d("CalendarFragment", "Calculated ${calculatedEvents.size} total events.")
-
-        // Group events by date and add to the map using the helper
-        calculatedEvents.forEach { event ->
-            addEvent(event.date, "${event.plantName}: ${event.description}")
-        }
-        Log.d("CalendarFragment", "Finished populating calendar events map.")
-        // Optional: Show a toast only if needed, maybe not every time data updates
-        // Toast.makeText(context, "Calendar events updated", Toast.LENGTH_SHORT).show()
+        Log.d("CalendarFragment", "Finished populating. ${calendarEvents.size} dates have events. ${eventDates.size} unique event dates.")
     }
 
-    // Renamed from getSelectedDateFromCalendarView for clarity
-    private fun getCurrentSelectedDateOrDefault(): LocalDate {
-        val milli = binding.calendarView.date // Get selected date in milliseconds
-        return Instant.ofEpochMilli(milli).atZone(ZoneId.systemDefault()).toLocalDate()
-        // Fallback if needed, though calendarView usually has a date selected
-            ?: LocalDate.now(ZoneId.systemDefault())
-    }
-
-
-    private fun setupCalendarViewListener() {
-        binding.calendarView.setOnDateChangeListener { _, year, month, dayOfMonth ->
-            val selectedDate = LocalDate.of(year, month + 1, dayOfMonth) // month is 0-indexed
-            displayEventsForDate(selectedDate)
-        }
-    }
-
-    private fun displayEventsForDate(date: LocalDate) {
+    /**
+     * Applies the EventDecorator to the MaterialCalendarView based on the eventDates set.
+     * Should be called after populateEventsAndDates.
+     */
+    private fun updateCalendarDecorators() {
+        // *** New function to apply decorators ***
         if (_binding == null) {
-            Log.w("CalendarFragment", "displayEventsForDate called but binding is null")
-            return
-        } // Check binding
+            Log.w("CalendarFragment", "updateCalendarDecorators called but binding is null")
+            return // Check binding isn't null
+        }
 
+        // Define the color for the event dot (using a color resource is recommended)
+        // Ensure R.color.event_dot_color exists in res/values/colors.xml
+        val eventColor = ContextCompat.getColor(requireContext(), R.color.purple_500) // Example color
+        // Or use a standard color: val eventColor = Color.BLUE
+
+        // Remove ALL previous decorators before adding new ones to prevent duplicates
+        // This is important if the set of event dates changes
+        binding.materialCalendarView.removeDecorators()
+
+        // Add the decorator only if there are dates with events
+        if (eventDates.isNotEmpty()) {
+            Log.d("CalendarFragment", "Adding decorator for ${eventDates.size} dates.")
+            binding.materialCalendarView.addDecorator(EventDecorator(eventColor, eventDates))
+        } else {
+            Log.d("CalendarFragment", "No event dates, skipping decorator.")
+        }
+        // Invalidate the calendar view to ensure decorators are redrawn immediately
+        binding.materialCalendarView.invalidateDecorators()
+    }
+
+    /**
+     * Refreshes the event details TextView based on the currently selected date
+     * in the MaterialCalendarView.
+     */
+    private fun refreshDisplayForSelection() {
+        // *** New helper function to avoid code duplication ***
+        if (_binding == null) return
+        val selectedCalDay = binding.materialCalendarView.selectedDate
+        // Use today() which correctly handles month indexing (1-12)
+        val selectedLocalDate = selectedCalDay?.let {
+            LocalDate.of(it.year, it.month, it.day)
+        } ?: LocalDate.now() // Default to today if somehow null
+        displayEventsForDate(selectedLocalDate)
+    }
+
+    /**
+     * Displays the event descriptions for a given date in the TextView.
+     */
+    private fun displayEventsForDate(date: LocalDate) {
+        if (_binding == null) return
         val eventsForDay = calendarEvents[date]
-        val displayTextView = binding.textViewEventsDisplay // Assume ID exists in fragment_calendar.xml
+        val displayTextView = binding.textViewEventsDisplay
 
         if (eventsForDay.isNullOrEmpty()) {
-            // Log.d("CalendarFragment", "No events for $date")
-            // Keep the previous text or set default message if TextView exists
-            displayTextView?.text = "No scheduled tasks for $date."
-            // displayTextView?.visibility = View.GONE // Or keep visible with message
+            // Use a string resource for consistency and formatting
+            displayTextView.text = getString(R.string.calendar_no_tasks, date.toString())
+            // Example: Define in strings.xml: <string name="calendar_no_tasks">No scheduled tasks for %1$s.</string>
         } else {
             val eventsText = eventsForDay.joinToString("\n")
             Log.d("CalendarFragment", "Displaying events for $date")
-            displayTextView?.text = eventsText // Display only the events, maybe add date separately if needed
-            displayTextView?.visibility = View.VISIBLE
+            displayTextView.text = eventsText // Display only the events
         }
+        // Keep TextView visible to show either events or "no tasks" message
+        displayTextView.visibility = View.VISIBLE
     }
 
-    // Helper to add event to the local map (keep this)
-    private fun addEvent(date: LocalDate, message: String) {
+    /**
+     * Helper to add an event description message to the map for a specific date.
+     * Renamed from addEvent for clarity.
+     */
+    private fun addEventDescription(date: LocalDate, message: String) {
         val eventsForDate = calendarEvents.getOrPut(date) { mutableListOf() }
         eventsForDate.add(message)
     }
-
-    // Placeholder for updating MaterialCalendarView decorators later
-    // private fun updateCalendarDecorators() { ... }
 
     override fun onDestroyView() {
         super.onDestroyView()
